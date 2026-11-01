@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   BadgeCheck,
   BarChart3,
+  Building2,
   Check,
   CircleCheck,
   ClipboardList,
   Clock3,
   Eye,
   EyeOff,
+  Inbox,
   KeyRound,
   LayoutDashboard,
   Lock,
   Mail,
   Menu,
+  MessageSquareQuote,
   LogOut,
   Pencil,
   Plus,
@@ -20,6 +23,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  Star,
   UserRound,
   Users,
   Wallet,
@@ -27,6 +31,8 @@ import {
   X,
 } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
+import AdminAbout from './AdminAbout'
+import AdminMessages from './AdminMessages'
 import {
   BOOKING_STATUSES,
   CATEGORY_LABELS,
@@ -37,7 +43,14 @@ import {
   getStartingPrice,
   toISODate,
 } from '../lib/data'
-import { fetchAdminCustomers, fetchAdminReport, getApiError, login as loginApi } from '../lib/api'
+import {
+  deleteReview as deleteReviewApi,
+  fetchAdminCustomers,
+  fetchAdminReport,
+  fetchReviews,
+  getApiError,
+  login as loginApi,
+} from '../lib/api'
 import NotificationBell from '../components/NotificationBell'
 import { generateAdminOverviewPDF } from '../lib/pdf'
 
@@ -84,6 +97,8 @@ function AdminDashboard({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [customers, setCustomers] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [deletingReviewId, setDeletingReviewId] = useState('')
   const [report, setReport] = useState(null)
   const [moduleLoading, setModuleLoading] = useState(false)
   const [moduleError, setModuleError] = useState('')
@@ -94,7 +109,10 @@ function AdminDashboard({
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'bookings', label: 'Bookings', icon: ClipboardList },
     { id: 'services', label: 'Services', icon: Wrench },
+    { id: 'about', label: 'About Us', icon: Building2 },
     { id: 'users', label: 'Customers', icon: Users },
+    { id: 'reviews', label: 'Customer Reviews', icon: MessageSquareQuote },
+    { id: 'messages', label: 'Messages', icon: Inbox },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
   ]
 
@@ -123,16 +141,38 @@ function AdminDashboard({
   }, [])
 
   useEffect(() => {
-    if (user?.role !== 'admin' || (activeSection !== 'users' && activeSection !== 'reports')) return
+    if (
+      user?.role !== 'admin'
+      || !['users', 'reviews', 'reports'].includes(activeSection)
+    ) return
     // Module data is synchronized with the protected admin APIs when its section opens.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setModuleLoading(true)
     setModuleError('')
     const request = activeSection === 'users'
       ? fetchAdminCustomers().then(setCustomers)
-      : fetchAdminReport(reportRange).then(setReport)
+      : activeSection === 'reviews'
+        ? fetchReviews().then((result) => {
+          if (!Array.isArray(result)) throw new Error('Review data returned by the server is invalid.')
+          setReviews(result)
+        })
+        : fetchAdminReport(reportRange).then(setReport)
     request.catch((error) => setModuleError(getApiError(error, 'Unable to load this admin module.'))).finally(() => setModuleLoading(false))
   }, [activeSection, user?.role, reportRange])
+
+  const handleDeleteReview = async (review) => {
+    if (!window.confirm(`Delete the review from ${review.name || 'this customer'}?`)) return
+    setDeletingReviewId(review._id)
+    try {
+      await deleteReviewApi(review._id)
+      setReviews((current) => current.filter((item) => item._id !== review._id))
+      setNotice('Customer review deleted.')
+    } catch (error) {
+      setNotice(getApiError(error, 'Unable to delete this review.'))
+    } finally {
+      setDeletingReviewId('')
+    }
+  }
 
   const downloadReportCsv = () => {
     if (!report?.exportData?.length) return
@@ -1041,6 +1081,87 @@ function AdminDashboard({
           {moduleError ? <p className="field-error">{moduleError}</p> : null}
           {moduleLoading ? <div className="module-loading">Loading registered customers…</div> : <div className="table-wrap"><table className="admin-table customers-table"><thead><tr><th>Customer</th><th>Contact</th><th>Bookings</th><th>Activity</th><th>Completed value</th><th>Registered</th></tr></thead><tbody>{filteredCustomers.map((customer) => <tr key={customer.id}><td><div className="customer-profile-cell"><span className="customer-avatar">{customer.profilePicture ? <img src={customer.profilePicture} alt="" /> : customer.name?.slice(0, 1).toUpperCase()}</span><div><strong>{customer.name}</strong><span>{customer.email}</span></div></div></td><td><span className="table-muted">{customer.phone || 'No phone on booking'}</span></td><td><strong>{customer.totalBookings}</strong><span className="table-substats">{customer.completed} completed · {customer.cancelled} cancelled</span></td><td><span className="table-substats">{customer.pending} pending · {customer.confirmed} confirmed</span></td><td className="price-cell">{formatPrice(customer.completedRevenue)}</td><td><span className="table-muted">{customer.registeredAt ? formatDate(customer.registeredAt) : '—'}</span></td></tr>)}{!filteredCustomers.length ? <tr><td colSpan="6"><div className="table-empty"><Users size={24} /><strong>No registered customers found</strong><span>New customer accounts will appear here.</span></div></td></tr> : null}</tbody></table></div>}
         </section> : null}
+
+        {activeSection === 'reviews' ? <section className="panel admin-module-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Customer reviews</h2>
+              <p>Review customer feedback and remove spam or inappropriate submissions.</p>
+            </div>
+            <span className="module-count">{reviews.length} reviews</span>
+          </div>
+          {moduleError ? <p className="field-error" role="alert">{moduleError}</p> : null}
+          {moduleLoading ? (
+            <div className="module-loading" role="status">Loading customer reviews…</div>
+          ) : !moduleError && reviews.length === 0 ? (
+            <div className="table-empty review-admin-empty">
+              <MessageSquareQuote size={24} />
+              <strong>No customer reviews yet</strong>
+              <span>Customer reviews will appear here when submitted.</span>
+            </div>
+          ) : !moduleError ? (
+            <div className="table-wrap">
+              <table className="admin-table reviews-admin-table">
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Rating</th>
+                    <th>Service</th>
+                    <th>Comment</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviews.map((review) => {
+                    const createdAt = review.createdAt ? String(review.createdAt) : ''
+                    const date = createdAt ? new Date(createdAt) : null
+                    const dateLabel = date && !Number.isNaN(date.getTime())
+                      ? formatDate(date.toISOString().slice(0, 10))
+                      : '—'
+                    const rating = Number(review.rating)
+
+                    return (
+                      <tr key={review._id}>
+                        <td><strong className="review-admin-name">{review.name || '—'}</strong></td>
+                        <td>
+                          <span className="review-admin-rating" aria-label={`${rating} out of 5 stars`}>
+                            {Array.from({ length: 5 }, (_, index) => (
+                              <Star
+                                key={index}
+                                size={14}
+                                fill={index < rating ? 'currentColor' : 'none'}
+                                aria-hidden="true"
+                              />
+                            ))}
+                          </span>
+                        </td>
+                        <td><span className="table-muted">{review.serviceName || '—'}</span></td>
+                        <td><p className="review-admin-comment">{review.comment || '—'}</p></td>
+                        <td><span className="table-muted">{dateLabel}</span></td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-danger-outline btn-sm review-admin-delete"
+                            onClick={() => handleDeleteReview(review)}
+                            disabled={deletingReviewId === review._id}
+                            aria-label={`Delete review from ${review.name || 'customer'}`}
+                          >
+                            <Trash2 size={13} />
+                            {deletingReviewId === review._id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section> : null}
+
+        {activeSection === 'messages' ? <AdminMessages /> : null}
+        {activeSection === 'about' ? <AdminAbout /> : null}
 
         {activeSection === 'reports' ? <section className="reports-stack">
           <div className="panel reports-toolbar"><div><span className="eyebrow"><BarChart3 size={13} /> Workshop analytics</span><h2>Reports & <span className="text-red">performance.</span></h2><p>Review booking activity, completed revenue and service demand.</p></div><div className="report-filters"><label>From<input type="date" value={reportRange.from} onChange={(event) => setReportRange((current) => ({ ...current, from: event.target.value }))} /></label><label>To<input type="date" value={reportRange.to} onChange={(event) => setReportRange((current) => ({ ...current, to: event.target.value }))} /></label><button type="button" className="btn btn-primary btn-sm" onClick={downloadReportCsv} disabled={!report?.exportData?.length}>Export CSV</button></div></div>

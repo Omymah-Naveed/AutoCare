@@ -45,4 +45,82 @@ function sendBookingNotificationEmail({ email, name, bookingId, message }) {
   })
 }
 
-module.exports = { sendPasswordResetEmail, sendBookingNotificationEmail }
+function sendContactEmail({ name, email, phone, subject, message }) {
+  const recipient = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.EMAIL_USER
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !recipient) {
+    const error = new Error('Contact email delivery is not configured.')
+    error.statusCode = 503
+    throw error
+  }
+
+  return transporter.sendMail({
+    from: `"AutoCare Contact" <${process.env.EMAIL_USER}>`,
+    to: recipient,
+    replyTo: email,
+    subject: `Contact form: ${subject.replace(/[\r\n]/g, ' ')}`,
+    text: [
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Phone: ${phone}`,
+      '',
+      'Message:',
+      message,
+    ].join('\n'),
+  })
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character])
+}
+
+function sendContactReplyEmail({ email, subject, message, customerName }) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    const error = new Error('Contact reply email delivery is not configured.')
+    error.statusCode = 503
+    throw error
+  }
+
+  const safeName = escapeHtml(customerName || 'there')
+  const safeMessage = escapeHtml(message).replace(/\r?\n/g, '<br>')
+
+  return transporter.sendMail({
+    from: `"AutoCare Support" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject,
+    text: `Hello ${customerName || 'there'},\n\n${message}\n\nWarm regards,\nAutoCare Support Team\nKarachi, Pakistan · support@autocare.com`,
+    html: `
+      <div style="margin:0;background:#0b0f19;padding:40px 16px;font-family:Arial,sans-serif;color:#f5f7fb">
+        <div style="max-width:600px;margin:0 auto;background:#111827;border:1px solid #273449;border-radius:18px;overflow:hidden">
+          <div style="padding:26px 30px;border-bottom:1px solid #273449">
+            <div style="font-size:23px;font-weight:800;letter-spacing:-.04em">Auto<span style="color:#ff4153">Care</span></div>
+            <div style="margin-top:5px;color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase">Smart Service, Smoother Drives.</div>
+          </div>
+          <div style="padding:30px">
+            <div style="color:#ff4153;font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase">Customer support</div>
+            <h1 style="margin:12px 0 18px;color:#f5f7fb;font-size:25px;line-height:1.2">Hello ${safeName},</h1>
+            <div style="color:#cbd5e1;font-size:14px;line-height:1.8">${safeMessage}</div>
+            <div style="margin-top:28px;padding-top:20px;border-top:1px solid #273449;color:#cbd5e1;font-size:13px;line-height:1.7">
+              <strong style="display:block;color:#f5f7fb">Warm regards,</strong>
+              <span style="color:#ff4153;font-weight:700">AutoCare Support Team</span><br>
+              Karachi, Pakistan · support@autocare.com
+            </div>
+          </div>
+          <div style="padding:15px 30px;background:#0d1320;color:#64748b;font-size:10px">Thank you for choosing AutoCare.</div>
+        </div>
+      </div>
+    `,
+  })
+}
+
+module.exports = {
+  sendPasswordResetEmail,
+  sendBookingNotificationEmail,
+  sendContactEmail,
+  sendContactReplyEmail,
+}

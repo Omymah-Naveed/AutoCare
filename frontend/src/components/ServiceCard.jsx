@@ -12,7 +12,7 @@ const CAR_ICONS = {
   suv: Truck,
 }
 
-function ServiceCard({ service, onBook }) {
+function ServiceCard({ service, onBook, onView }) {
   return (
     <article className="service-card">
       <div className="service-media">
@@ -37,6 +37,12 @@ function ServiceCard({ service, onBook }) {
           <Clock size={12} />
           {service.duration}
         </span>
+        <button
+          type="button"
+          className="service-media-link"
+          onClick={() => onView(service)}
+          aria-label={`View details for ${service.title}`}
+        />
       </div>
 
       <div className="service-body">
@@ -74,14 +80,23 @@ function ServiceCard({ service, onBook }) {
             <span>Starting from</span>
             <strong>{formatPrice(getStartingPrice(service))}</strong>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => onBook(service)}
-          >
-            Book Now
-            <ArrowRight size={15} />
-          </button>
+          <div className="service-card-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm service-view-btn"
+              onClick={() => onView(service)}
+            >
+              View Details
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => onBook(service)}
+            >
+              Book Now
+              <ArrowRight size={15} />
+            </button>
+          </div>
         </div>
       </div>
     </article>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
@@ -8,15 +8,38 @@ import {
   ClipboardList,
   Clock,
   MapPin,
+  MessageSquareQuote,
+  Quote,
   Search,
   ShieldCheck,
   Sparkles,
   Star,
   Wrench,
 } from 'lucide-react'
-import BookingModal from '../components/BookingModal'
 import ServiceCard from '../components/ServiceCard'
+import { fetchReviews, getApiError } from '../lib/api'
 import { SERVICE_CATEGORIES } from '../lib/data'
+
+const FALLBACK_TESTIMONIALS = [
+  {
+    name: 'AutoCare promise',
+    rating: 5,
+    serviceName: 'Transparent pricing',
+    comment: 'Clear prices, thoughtful service, and care for every car—without the guesswork.',
+  },
+  {
+    name: 'AutoCare promise',
+    rating: 5,
+    serviceName: 'Quality workmanship',
+    comment: 'Skilled technicians, genuine-grade products, and a final check before handover.',
+  },
+  {
+    name: 'AutoCare promise',
+    rating: 5,
+    serviceName: 'Care that fits your day',
+    comment: 'Simple booking, convenient appointments, and updates that keep you in control.',
+  },
+]
 
 const FILTER_ICONS = {
   all: CarFront,
@@ -45,9 +68,45 @@ const PROCESS_STEPS = [
   },
 ]
 
-function Home({ services, user, onCreateBooking, onTrack, onNavigate }) {
+function Home({ services, onNavigate, onBookService, onViewService }) {
   const [activeFilter, setActiveFilter] = useState('all')
-  const [selectedService, setSelectedService] = useState(null)
+  const [testimonials, setTestimonials] = useState([])
+  const [testimonialsLoading, setTestimonialsLoading] = useState(true)
+  const [testimonialsError, setTestimonialsError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    fetchReviews()
+      .then((reviews) => {
+        if (!Array.isArray(reviews)) throw new Error('Review data returned by the server is invalid.')
+        const validReviews = reviews.filter((review) => (
+          review
+          && typeof review.name === 'string'
+          && typeof review.comment === 'string'
+          && Number.isInteger(Number(review.rating))
+          && Number(review.rating) >= 1
+          && Number(review.rating) <= 5
+        ))
+        const featured = validReviews
+          .sort((a, b) => (
+            Number(b.rating) - Number(a.rating)
+            || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          ))
+          .slice(0, 3)
+        if (active) setTestimonials(featured)
+      })
+      .catch((error) => {
+        if (active) setTestimonialsError(getApiError(error, 'Customer reviews are temporarily unavailable.'))
+      })
+      .finally(() => {
+        if (active) setTestimonialsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const filteredServices = useMemo(() => {
     if (activeFilter === 'all') return services
@@ -63,14 +122,6 @@ function Home({ services, user, onCreateBooking, onTrack, onNavigate }) {
     document
       .getElementById('services')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  const handleBookService = (service) => {
-    if (!user) {
-      onNavigate('auth', 'services')
-      return
-    }
-    setSelectedService(service)
   }
 
   return (
@@ -238,7 +289,8 @@ function Home({ services, user, onCreateBooking, onTrack, onNavigate }) {
                 <ServiceCard
                   key={service.id}
                   service={service}
-                  onBook={handleBookService}
+                  onBook={onBookService}
+                  onView={onViewService}
                 />
               ))}
             </div>
@@ -261,6 +313,107 @@ function Home({ services, user, onCreateBooking, onTrack, onNavigate }) {
               </button>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="section testimonials-section">
+        <div className="container">
+          <div className="section-head testimonials-head">
+            <div>
+              <span className="eyebrow">
+                <MessageSquareQuote size={14} />
+                Driver stories
+              </span>
+              <h2>
+                Care that earns{' '}
+                <span className="text-red">your trust.</span>
+              </h2>
+              <p>
+                See what drivers appreciate about a better, more thoughtful
+                service experience.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => onNavigate('reviews')}
+            >
+              View all reviews
+              <ArrowRight size={15} />
+            </button>
+          </div>
+
+          {testimonialsLoading ? (
+            <div className="testimonials-grid" aria-label="Loading customer stories" aria-busy="true">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div className="testimonial-skeleton" key={index}>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              {testimonialsError ? (
+                <p className="testimonials-note" role="status">
+                  Customer reviews are temporarily unavailable. Here’s the
+                  service experience we aim to deliver.
+                </p>
+              ) : null}
+              {!testimonialsError && testimonials.length === 0 ? (
+                <p className="testimonials-note" role="status">
+                  Be among the first to leave feedback. Here’s the service
+                  experience we aim to deliver.
+                </p>
+              ) : null}
+              <div className="testimonials-grid">
+                {(testimonials.length ? testimonials : FALLBACK_TESTIMONIALS).map((review, index) => (
+                  <article
+                    className={`testimonial-card${testimonials.length ? '' : ' is-promise'}`}
+                    key={review._id || `${review.serviceName}-${index}`}
+                  >
+                    <div className="testimonial-card-top">
+                      <span className="testimonial-quote-icon" aria-hidden="true">
+                        <Quote size={19} />
+                      </span>
+                      <span className="testimonial-stars" aria-label={`${review.rating} out of 5 stars`}>
+                        {Array.from({ length: 5 }, (_, star) => (
+                          <Star
+                            key={star}
+                            size={15}
+                            fill={star < Number(review.rating) ? 'currentColor' : 'none'}
+                            aria-hidden="true"
+                          />
+                        ))}
+                      </span>
+                    </div>
+                    <p className="testimonial-comment">{review.comment}</p>
+                    <div className="testimonial-card-footer">
+                      <div className="testimonial-author">
+                        <span className="testimonial-avatar" aria-hidden="true">
+                          {review.name.trim().charAt(0).toUpperCase()}
+                        </span>
+                        <strong>{review.name}</strong>
+                      </div>
+                      {review.serviceName ? (
+                        <span className="testimonial-service-tag">{review.serviceName}</span>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="testimonials-cta">
+            <span>Had your car serviced with us?</span>
+            <button type="button" onClick={() => onNavigate('reviews')}>
+              Leave a review
+              <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
       </section>
 
@@ -327,16 +480,6 @@ function Home({ services, user, onCreateBooking, onTrack, onNavigate }) {
           </div>
         </div>
       </section>
-
-      {selectedService ? (
-          <BookingModal
-            service={selectedService}
-            services={services}
-            onCreateBooking={onCreateBooking}
-          onClose={() => setSelectedService(null)}
-          onTrack={onTrack}
-        />
-      ) : null}
     </div>
   )
 }

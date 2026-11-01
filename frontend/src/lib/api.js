@@ -3,7 +3,7 @@ import axios from 'axios'
 // Relative base URL keeps local development and the unified Vercel deployment
 // on the same `/api` endpoints. Vite proxies `/api` to the backend in dev.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || '/api'),
 })
 
 api.interceptors.request.use((config) => {
@@ -38,6 +38,59 @@ export function normalizeService(service) {
 export async function fetchServices() {
   const { data } = await api.get('/services')
   return data.map(normalizeService)
+}
+
+export async function fetchService(serviceId) {
+  const { data } = await api.get(`/services/${encodeURIComponent(serviceId)}`)
+  return normalizeService(data)
+}
+
+export async function fetchReviews() {
+  const { data } = await api.get('/reviews')
+  return data
+}
+
+export async function fetchAboutContent() {
+  const { data } = await api.get('/about')
+  return data
+}
+
+export async function updateAboutContent(content) {
+  const { data } = await api.put('/admin/about', content)
+  return data
+}
+
+export async function createReview(review) {
+  const { data } = await api.post('/reviews', review)
+  return data
+}
+
+export async function submitContactMessage(message) {
+  const { data } = await api.post('/contact', message)
+  return data
+}
+
+export async function fetchAdminContactMessages() {
+  const { data } = await api.get('/contact')
+  return data
+}
+
+export async function updateContactMessageStatus(messageId, status) {
+  const { data } = await api.patch(`/contact/${encodeURIComponent(messageId)}`, { status })
+  return data
+}
+
+export async function sendContactReply(messageId, reply) {
+  const { data } = await api.post('/contact/reply', {
+    contactId: messageId,
+    ...reply,
+  })
+  return data
+}
+
+export async function deleteReview(reviewId) {
+  const { data } = await api.delete(`/reviews/${encodeURIComponent(reviewId)}`)
+  return data
 }
 
 export async function createBooking(payload) {

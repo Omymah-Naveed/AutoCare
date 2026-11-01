@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
+  Building2,
   ChevronDown,
   ClipboardList,
+  Home as HomeIcon,
+  MapPin,
   LogOut,
   Menu,
+  MoreHorizontal,
+  ShieldCheck,
+  Star,
   UserRound,
   Wrench,
   X,
@@ -12,27 +18,42 @@ import {
 import NotificationBell from './NotificationBell'
 
 const NAV_ITEMS = [
-  { id: 'home', label: 'Services', icon: Wrench },
-  { id: 'track', label: 'Track Booking', icon: ClipboardList },
+  { id: 'home', label: 'Home', icon: HomeIcon },
+  { id: 'services', label: 'Services', icon: Wrench },
 ]
 
 function Navbar({ activePage, onNavigate, user, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const headerRef = useRef(null)
+  const moreRef = useRef(null)
   const profileRef = useRef(null)
 
   const go = (page, target) => {
     setMenuOpen(false)
+    setMoreOpen(false)
     setProfileOpen(false)
     onNavigate(page, target)
   }
 
   useEffect(() => {
     const handlePointerDown = (event) => {
+      if (!headerRef.current?.contains(event.target)) {
+        setMenuOpen(false)
+        setMoreOpen(false)
+        setProfileOpen(false)
+        return
+      }
+      if (!moreRef.current?.contains(event.target)) setMoreOpen(false)
       if (!profileRef.current?.contains(event.target)) setProfileOpen(false)
     }
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setProfileOpen(false)
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        setMoreOpen(false)
+        setProfileOpen(false)
+      }
     }
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
@@ -43,7 +64,7 @@ function Navbar({ activePage, onNavigate, user, onLogout }) {
   }, [])
 
   return (
-    <header className="navbar">
+    <header className="navbar" ref={headerRef}>
       <div className="container nav-inner">
         <button
           type="button"
@@ -64,20 +85,62 @@ function Navbar({ activePage, onNavigate, user, onLogout }) {
             <button
               key={id}
               type="button"
-              className={`nav-link${activePage === id ? ' is-active' : ''}`}
-              onClick={() => go(id, id === 'home' ? 'services' : undefined)}
-              aria-current={activePage === id ? 'page' : undefined}
+              className={`nav-link${(id === 'home' && activePage === 'home') || (id === 'services' && activePage === 'service') ? ' is-active' : ''}`}
+              onClick={() => go('home', id === 'services' ? 'services' : undefined)}
+              aria-current={(id === 'home' && activePage === 'home') || (id === 'services' && activePage === 'service') ? 'page' : undefined}
             >
               <Icon size={16} strokeWidth={2} />
               {label}
             </button>
           ))}
+          <div className="nav-more" ref={moreRef}>
+            <button
+              type="button"
+              className={`nav-link nav-more-toggle${moreOpen ? ' is-active' : ''}`}
+              onClick={() => {
+                setMoreOpen((open) => !open)
+                setProfileOpen(false)
+              }}
+              aria-expanded={moreOpen}
+              aria-haspopup="menu"
+              aria-controls="nav-more-menu"
+            >
+              <MoreHorizontal size={17} strokeWidth={2} />
+              More
+              <ChevronDown size={13} className="nav-more-chevron" />
+            </button>
+            {moreOpen ? (
+              <div className="nav-more-menu" id="nav-more-menu" role="menu" aria-label="More navigation">
+                <button type="button" role="menuitem" onClick={() => go('profile')}>
+                  <ClipboardList size={15} />
+                  My Bookings
+                </button>
+                <button type="button" role="menuitem" onClick={() => go('about')}>
+                  <Building2 size={15} />
+                  About Us
+                </button>
+                <button type="button" role="menuitem" onClick={() => go('reviews')}>
+                  <Star size={15} />
+                  Customer Reviews
+                </button>
+                <button type="button" role="menuitem" onClick={() => go('contact')}>
+                  <MapPin size={15} />
+                  Contact Us
+                </button>
+                <span className="nav-more-divider" role="separator" />
+                <button type="button" role="menuitem" className="nav-admin-link" onClick={() => go('admin')}>
+                  <ShieldCheck size={15} />
+                  Admin Login
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             className="btn btn-primary nav-cta"
             onClick={() => go('home', 'services')}
           >
-            Book a Service
+            Book Now
             <ArrowRight size={15} />
           </button>
           {user ? (
@@ -87,7 +150,10 @@ function Navbar({ activePage, onNavigate, user, onLogout }) {
               <button
                 type="button"
                 className={`nav-user${profileOpen ? ' is-open' : ''}`}
-                onClick={() => setProfileOpen((open) => !open)}
+                onClick={() => {
+                  setProfileOpen((open) => !open)
+                  setMoreOpen(false)
+                }}
                 aria-expanded={profileOpen}
                 aria-haspopup="menu"
                 title="Open profile menu"

@@ -1,4 +1,25 @@
+const mongoose = require('mongoose')
 const Service = require('../models/Service')
+
+// Services created before the detail-page fields existed do not have
+// `features`, `includedChecks` or `warranty`. These defaults keep the public
+// detail page complete without forcing a database migration.
+const DEFAULT_FEATURES = [
+  'Certified AutoCare technician assigned to your vehicle',
+  'Genuine, OEM-grade products and consumables',
+  'Complimentary 20-point vehicle inspection',
+  'Final quality check before handover',
+]
+
+const DEFAULT_CHECKS = [
+  'Pre-service condition walkaround with photo record',
+  'Post-service performance verification',
+  'Fluid and tyre pressure top-up where applicable',
+  'Digital service report attached to your booking',
+]
+
+const DEFAULT_WARRANTY =
+  '90-day AutoCare workmanship warranty. If anything is not right after the service, we inspect and re-do it free of charge.'
 
 function parsePrices(value) {
   if (typeof value !== 'string') return value
@@ -11,9 +32,31 @@ function parsePrices(value) {
   }
 }
 
+function withDetailDefaults(service) {
+  const plain = typeof service.toObject === 'function' ? service.toObject() : service
+  return {
+    ...plain,
+    features: plain.features?.length ? plain.features : DEFAULT_FEATURES,
+    includedChecks: plain.includedChecks?.length ? plain.includedChecks : DEFAULT_CHECKS,
+    warranty: plain.warranty || DEFAULT_WARRANTY,
+  }
+}
+
 async function getServices(req, res) {
   const services = await Service.find().sort({ createdAt: -1 })
   res.json(services)
+}
+
+async function getServiceById(req, res) {
+  let service = null
+  if (mongoose.isValidObjectId(req.params.id)) {
+    service = await Service.findById(req.params.id)
+  } else {
+    service = await Service.findOne({ slug: req.params.id })
+  }
+  if (!service) return res.status(404).json({ message: 'Service not found.' })
+
+  res.json(withDetailDefaults(service))
 }
 
 async function createService(req, res) {
@@ -43,4 +86,10 @@ async function deleteService(req, res) {
   res.json({ message: 'Service deleted successfully.' })
 }
 
-module.exports = { getServices, createService, updateService, deleteService }
+module.exports = {
+  getServices,
+  getServiceById,
+  createService,
+  updateService,
+  deleteService,
+}

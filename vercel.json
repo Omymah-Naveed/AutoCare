@@ -16,6 +16,22 @@
       "dest": "/server.js"
     },
     {
+      "src": "/services/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/reviews(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/about(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(my-bookings|contact|admin-login|privacy-policy)(.*)",
+      "dest": "/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }

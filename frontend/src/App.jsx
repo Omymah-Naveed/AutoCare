@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CircleCheck } from 'lucide-react'
+import { ArrowRight, CircleCheck } from 'lucide-react'
 import './App.css'
+import BookingModal from './components/BookingModal'
+import About from './pages/About'
+import Contact from './pages/Contact'
 import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import AdminDashboard from './pages/AdminDashboard'
@@ -8,7 +11,10 @@ import CustomerProfile from './pages/CustomerProfile'
 import ForgotPassword from './pages/ForgotPassword'
 import Home from './pages/Home'
 import LoginSignup from './pages/LoginSignup'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import ResetPassword from './pages/ResetPassword'
+import Reviews from './pages/Reviews'
+import ServiceDetail from './pages/ServiceDetail'
 import TrackBooking from './pages/TrackBooking'
 import {
   cloneDefaultServices,
@@ -30,10 +36,24 @@ function App() {
     if (path === '/admin-login' || path === '/admin') return 'admin'
     if (path === '/reset-password') return 'reset'
     if (path === '/forgot-password') return 'forgot'
+    if (path === '/my-bookings') return 'profile'
+    if (path === '/about') return 'about'
+    if (path === '/privacy-policy') return 'privacy'
+    if (path === '/contact') return 'contact'
+    if (path === '/reviews') return 'reviews'
+    if (/^\/services\/[^/]+$/.test(path)) return 'service'
     return 'home'
   }
 
+  const getServiceIdFromPath = () => {
+    const match = window.location.pathname.match(/^\/services\/([^/]+)\/?$/i)
+    return match ? decodeURIComponent(match[1]) : ''
+  }
+
   const [activePage, setActivePage] = useState(getRoutePage)
+  const [activeServiceId, setActiveServiceId] = useState(getServiceIdFromPath)
+  const [bookingService, setBookingService] = useState(null)
+  const [pendingService, setPendingService] = useState(null)
   const [services, setServices] = useState([])
   const [bookings, setBookings] = useState([])
   const [dataError, setDataError] = useState('')
@@ -80,8 +100,29 @@ function App() {
 
     if (page === 'admin') {
       window.history.pushState({}, '', '/admin-login')
-    } else if (window.location.pathname !== '/') {
-      window.history.pushState({}, '', '/')
+    } else if (page === 'profile') {
+      setActiveServiceId('')
+      window.history.pushState({}, '', '/my-bookings')
+    } else if (page === 'contact') {
+      setActiveServiceId('')
+      window.history.pushState({}, '', '/contact')
+    } else if (page === 'about') {
+      setActiveServiceId('')
+      window.history.pushState({}, '', '/about')
+    } else if (page === 'privacy') {
+      setActiveServiceId('')
+      window.history.pushState({}, '', '/privacy-policy')
+    } else if (page === 'reviews') {
+      setActiveServiceId('')
+      window.history.pushState({}, '', '/reviews')
+    } else if (page === 'service' && target) {
+      setActiveServiceId(target)
+      window.history.pushState({}, '', `/services/${encodeURIComponent(target)}`)
+    } else {
+      setActiveServiceId('')
+      if (window.location.pathname !== '/') {
+        window.history.pushState({}, '', '/')
+      }
     }
 
     if (page === 'home' && target) {
@@ -103,6 +144,18 @@ function App() {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const handleBookService = (service) => {
+    if (!user) {
+      setPendingService(service)
+      setAppNotice('Please log in or create an account to continue with this booking.')
+      navigate('auth')
+      return
+    }
+    setBookingService(service)
+  }
+
+  const closeBookingModal = () => setBookingService(null)
 
   const createBooking = (draft) => {
     return createBookingApi({
@@ -167,6 +220,10 @@ function App() {
     persistAuth(account, token)
     setAppNotice(`Welcome back, ${account.name || 'AutoCare customer'}!`)
     navigate('home')
+    if (pendingService) {
+      setBookingService(pendingService)
+      setPendingService(null)
+    }
   }
 
   const handleAdminAuthSuccess = (account, token) => {
@@ -186,7 +243,10 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const handlePopState = () => setActivePage(getRoutePage())
+    const handlePopState = () => {
+      setActivePage(getRoutePage())
+      setActiveServiceId(getServiceIdFromPath())
+    }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
@@ -204,12 +264,27 @@ function App() {
         {activePage === 'home' ? (
           <Home
             services={services}
-            user={user}
-            onCreateBooking={createBooking}
-            onTrack={openTrackBooking}
+            onNavigate={navigate}
+            onBookService={handleBookService}
+            onViewService={(service) => navigate('service', service.id)}
+          />
+        ) : null}
+
+        {activePage === 'contact' ? <Contact /> : null}
+        {activePage === 'about' ? <About onNavigate={navigate} /> : null}
+        {activePage === 'privacy' ? <PrivacyPolicy onNavigate={navigate} /> : null}
+
+        {activePage === 'service' ? (
+          <ServiceDetail
+            key={activeServiceId}
+            serviceId={activeServiceId}
+            services={services}
+            onBook={handleBookService}
             onNavigate={navigate}
           />
         ) : null}
+
+        {activePage === 'reviews' ? <Reviews services={services} /> : null}
 
         {dataError && activePage === 'home' ? (
           <div className="container api-error" role="alert">{dataError}</div>
@@ -249,17 +324,44 @@ function App() {
           <ResetPassword token={resetToken} onNavigate={navigate} />
         ) : null}
 
-        {activePage === 'profile' && user ? (
-          <CustomerProfile
-            user={user}
-            onProfileUpdated={handleProfileUpdated}
-            onNavigate={navigate}
-          />
+        {activePage === 'profile' ? (
+          user ? (
+            <CustomerProfile
+              user={user}
+              onProfileUpdated={handleProfileUpdated}
+              onNavigate={navigate}
+            />
+          ) : (
+            <div className="profile-page">
+              <div className="container profile-empty-access">
+                <h1>Sign in to view your bookings</h1>
+                <p>Your service history and upcoming appointments are available in your AutoCare account.</p>
+                <button type="button" className="btn btn-primary" onClick={() => navigate('auth')}>
+                  Login / Signup
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
+          )
         ) : null}
       </main>
 
       {activePage !== 'admin' ? <Footer onNavigate={navigate} /> : null}
-      {appNotice ? <div className="toast toast-success app-auth-toast" role="status"><span className="toast-icon"><CircleCheck size={17} /></span><div><strong>{appNotice}</strong><span>{appNotice.includes('logged out') ? 'See you next time.' : 'Your account session is now active.'}</span></div></div> : null}
+
+      {bookingService ? (
+        <BookingModal
+          service={bookingService}
+          services={services}
+          onCreateBooking={createBooking}
+          onClose={closeBookingModal}
+          onTrack={(bookingId) => {
+            closeBookingModal()
+            openTrackBooking(bookingId)
+          }}
+        />
+      ) : null}
+
+      {appNotice ? <div className="toast toast-success app-auth-toast" role="status"><span className="toast-icon"><CircleCheck size={17} /></span><div><strong>{appNotice}</strong><span>{appNotice.includes('logged out') ? 'See you next time.' : appNotice.includes('log in') ? 'Sign in to continue with your booking.' : 'Your account session is now active.'}</span></div></div> : null}
     </div>
   )
 }
