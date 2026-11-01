@@ -67,7 +67,8 @@ async function forgotPassword(req, res) {
   user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000)
   await user.save({ validateBeforeSave: false })
 
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173'
+  const configuredFrontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL
+  const frontendUrl = configuredFrontendUrl || `${req.protocol}://${req.get('host')}`
   const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`
   try {
     await sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl })

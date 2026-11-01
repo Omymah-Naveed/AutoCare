@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+// Relative base URL keeps local development and the unified Vercel deployment
+// on the same `/api` endpoints. Vite proxies `/api` to the backend in dev.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 })
 
 api.interceptors.request.use((config) => {

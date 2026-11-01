@@ -26,7 +26,7 @@ import {
 
 function App() {
   const getRoutePage = () => {
-    const path = window.location.pathname.toLowerCase()
+    const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/'
     if (path === '/admin-login' || path === '/admin') return 'admin'
     if (path === '/reset-password') return 'reset'
     if (path === '/forgot-password') return 'forgot'
