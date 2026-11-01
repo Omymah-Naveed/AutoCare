@@ -1,0 +1,20 @@
+# Environment variables (MUST BE IGNORED)
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+
+# Build & Output directories
+dist/
+build/
+
+# Logs & Debugging
+logs/
+*.log
+npm-debug.log*
+
+# OS System Files
+.DS_Store
+Thumbs.db
