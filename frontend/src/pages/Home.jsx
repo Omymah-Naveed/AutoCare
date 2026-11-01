@@ -19,6 +19,18 @@ import {
 import ServiceCard from '../components/ServiceCard'
 import { fetchReviews, getApiError } from '../lib/api'
 import { SERVICE_CATEGORIES } from '../lib/data'
+import useAboutContent from '../hooks/useAboutContent'
+
+function formatCounter(value, suffix = '') {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number <= 0) return '—'
+  return `${new Intl.NumberFormat('en').format(number)}${suffix}`
+}
+
+function formatRating(value) {
+  const rating = Number(value)
+  return Number.isFinite(rating) && rating > 0 ? `${rating.toFixed(1)}/5` : '—'
+}
 
 const FALLBACK_TESTIMONIALS = [
   {
@@ -69,6 +81,7 @@ const PROCESS_STEPS = [
 ]
 
 function Home({ services, onNavigate, onBookService, onViewService }) {
+  const { about } = useAboutContent()
   const [activeFilter, setActiveFilter] = useState('all')
   const [testimonials, setTestimonials] = useState([])
   const [testimonialsLoading, setTestimonialsLoading] = useState(true)
@@ -178,17 +191,21 @@ function Home({ services, onNavigate, onBookService, onViewService }) {
               <div className="hero-stat">
                 <strong>
                   <Star size={16} fill="currentColor" />
-                  4.9/5
+                  {formatRating(about.stats.customerRating)}
                 </strong>
                 <span>Customer rating</span>
               </div>
               <div className="hero-stat">
-                <strong>12k+</strong>
+                <strong>{formatCounter(about.stats.carsServiced, '+')}</strong>
                 <span>Cars serviced</span>
               </div>
               <div className="hero-stat">
-                <strong>45 min</strong>
-                <span>Express wash</span>
+                <strong>{formatCounter(about.stats.yearsExperience, '+')}</strong>
+                <span>Years of experience</span>
+              </div>
+              <div className="hero-stat">
+                <strong>{formatCounter(about.stats.expertTechnicians)}</strong>
+                <span>Expert technicians</span>
               </div>
             </div>
           </div>

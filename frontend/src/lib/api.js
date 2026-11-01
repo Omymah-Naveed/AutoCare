@@ -57,6 +57,12 @@ export async function fetchAboutContent() {
 
 export async function updateAboutContent(content) {
   const { data } = await api.put('/admin/about', content)
+  window.dispatchEvent(new Event('autocare:about-updated'))
+  try {
+    window.localStorage.setItem('autocare.about.updatedAt', String(Date.now()))
+  } catch (error) {
+    console.warn('Saved About content, but cross-tab updates are unavailable.', error)
+  }
   return data
 }
 

@@ -7581,9 +7581,26 @@
 }
 
 .hero-video-copy .hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
   max-width: 520px;
   margin-top: 46px;
   border-top-color: rgba(241, 245, 249, 0.2);
+}
+
+.hero-video-copy .hero-stat {
+  margin-right: 12px;
+  padding-right: 12px;
+}
+
+.hero-video-copy .hero-stat:last-child {
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.hero-video-copy .hero-stat span {
+  line-height: 1.5;
 }
 
 .hero-video-aside {
@@ -8986,6 +9003,23 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px;
+}
+
+.hero-video-copy .hero-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 14px;
+}
+
+.hero-video-copy .hero-stat:nth-child(2) {
+  margin-right: 0;
+  padding-right: 0;
+  border-right: 0;
+}
+
+.hero-video-copy .hero-stat:nth-child(3) {
+  margin-right: 12px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
 }
 
 .about-purpose-card {

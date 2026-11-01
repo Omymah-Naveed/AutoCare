@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
@@ -11,22 +10,7 @@ import {
   Users,
   Wrench,
 } from 'lucide-react'
-import { fetchAboutContent, getApiError } from '../lib/api'
-
-const EMPTY_ABOUT = {
-  companyName: 'AutoCare',
-  tagline: 'Smart Service, Smoother Drives.',
-  story: 'We are a car-only care studio built around transparent advice, skilled hands, and service that respects your time.',
-  mission: 'Make dependable car care straightforward, transparent, and convenient for every driver.',
-  vision: 'Set a higher standard for the way drivers experience vehicle care.',
-  stats: {
-    yearsExperience: 0,
-    carsServiced: 0,
-    expertTechnicians: 0,
-    customerRating: 0,
-  },
-  teamMembers: [],
-}
+import useAboutContent from '../hooks/useAboutContent'
 
 function formatStat(value) {
   const number = Number(value)
@@ -35,38 +19,7 @@ function formatStat(value) {
 }
 
 function About({ onNavigate }) {
-  const [about, setAbout] = useState(EMPTY_ABOUT)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [retry, setRetry] = useState(0)
-
-  useEffect(() => {
-    let active = true
-    fetchAboutContent()
-      .then((result) => {
-        if (!result || typeof result !== 'object') {
-          throw new Error('About information returned by the server is invalid.')
-        }
-        if (active) {
-          setAbout({
-            ...EMPTY_ABOUT,
-            ...result,
-            stats: { ...EMPTY_ABOUT.stats, ...result.stats },
-            teamMembers: Array.isArray(result.teamMembers) ? result.teamMembers : [],
-          })
-        }
-      })
-      .catch((requestError) => {
-        if (active) setError(getApiError(requestError, 'Unable to load About AutoCare.'))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [retry])
+  const { about, loading, error, refresh } = useAboutContent()
 
   const stats = [
     { key: 'yearsExperience', label: 'Years of experience', suffix: '+', icon: Sparkles },
@@ -96,11 +49,7 @@ function About({ onNavigate }) {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setLoading(true)
-                  setError('')
-                  setRetry((value) => value + 1)
-                }}
+                onClick={refresh}
               >
                 Try again
               </button>
